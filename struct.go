@@ -14,19 +14,17 @@ type DelayLevel struct {
 	NoAlive bool // 当为true 不获取延迟消息
 	Ttl time.Duration // 延迟时间
 	DealFn func(DelayTopicMsg) error // 处理方法
-	TopicState topicState
 }
 
-
+// 配置
 type DelayServeConf struct {
-	TopicDelayName string
 	ClientCtx context.Context
 	ClientWg *sync.WaitGroup
 	DelayLevels []*DelayLevel
 	Debug bool
 }
 
-// 延迟消息
+// 队列延迟消息
 type DelayTopicMsg struct {
 	Id uint64 `json:"id" from:"id"`
 	Level int `json:"level" from:"level"` // 延迟等级

@@ -1,39 +1,88 @@
 # go-delay-queue
-go-delay-queue
 
-### 基于消息组件实现延迟队列
+## WIKI
+https://github.com/wsqun/go-delay-queue/wiki/Introduction
 
-延迟队列其实是与时间相关的队列，普通队列只要队列有数据，客户端消费就能拿到这个数据，而延迟队列内的数据是与时间相关的，绑定了一个过期时间，只有到了过期时间，客户端才能消费到这个数据。
+## Installation
+make sure to initialize a Go module before installing go-delay-queue:
+```
+go get https://github.com/wsqun/go-delay-queue
+```
+Import
+```
+import "github.com/wsqun/go-delay-queue"
+```
 
-应用场景：
-1. 定时任务，比如任务A和任务B是同条流水线上的，当任务A完成了，一个小时后执行任务B
-2. 重试业务，比如业务A需要调用其它服务，而服务出现问题，这时候就需要做业务重试
+## QuickStart
+``` go
+package main
 
-实现方式：
-1. 基于消息的延迟：指为每条消息设置不同的延迟时间，那么每当队列中有新消息进入的时候就会重新根据延迟时间排序，或者定义时间轮，新消息落在指定位置；
-2. 基于队列的延迟： 设置不同延迟级别的队列，比如5s、1min、30mins、1h等，每个队列中消息的延迟时间都是相同的。
+import (
+	"context"
+	"fmt"
+	"github.com/go-redis/redis"
+	dredis "github.com/wsqun/go-delay-driver-redis"
+	go_delay_queue "github.com/wsqun/go-delay-queue"
+	"sync"
+	"time"
+)
 
-基于第一种不少组件都有实现方案，比如redis的sortset间接实现，kafka内部时间轮，rmq可安装插件实现。第一种实时性高，不过主观看会比较依赖组件本身，但自己实现就得考虑持久化、高可用等问题，建议直接使用组件本身；第二种方案可以基于组件去实现，通用性会高点，不过实时性不高，更适合用于重试业务场景。
+func main()  {
+	// 实例化队列
+	queuer,err := dredis.NewDredis(&redis.Options{
+		Addr:     "127.0.0.1:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	if err != nil {
+		panic(err)
+	}
 
-本文基于第二种方案使用go去实现
-先看简单的实现方式
+	// 创建延迟消息
+	low := &go_delay_queue.DelayLevel{
+		TopicName: "log",
+		Level:     0,
+		RetryNums: 1,
+		Ttl:       1 * time.Minute,
+		DealFn: dealMsg,
+	}
+	medium := &go_delay_queue.DelayLevel{
+		TopicName: "medium",
+		Level:     1,
+		RetryNums: 1,
+		Ttl:       5 * time.Minute,
+		DealFn: dealMsg,
+	}
+	high := &go_delay_queue.DelayLevel{
+		TopicName: "high",
+		Level:     2,
+		RetryNums: 1,
+		Ttl:       1 * time.Hour,
+		DealFn: dealMsg,
+	}
+	delaySli := []*go_delay_queue.DelayLevel{
+		low,medium,high,
+	}
+	// 初始化配置
+	var wg = &sync.WaitGroup{}
+	conf := &go_delay_queue.DelayServeConf{
+		ClientCtx:      context.Background(),
+		ClientWg:       wg,
+		DelayLevels: delaySli,
+		Debug: true,
+	}
+	if serve,err := go_delay_queue.NewDelay(conf, queuer);err == nil {
+		serve.Run()
+		serve.AddMsg(0, 1)
+	} else {
+		panic(err)
+	}
+	wg.Add(1)
+	wg.Wait()
+}
 
-
-1. 生产者将消息格式化后按延迟等级发布到不同生产队列
-2. 延迟服务订阅所有队列，拉出消息，判断是否到期
-3. 到期后投递到不同消费队列
-4. 消费者订阅所有消费队列，拉出消息，进行对应到业务逻辑
-5. 业务操作失败，需重试，格式化数据投递到高等级队列
-
-问题：
-1. 客户端要自己实现订阅不同队列；
-2. 队列数量多；
-3. 客户端要自己格式化消息以符合延迟服务数据标准；
-4. 失败重试需要自己开发往哪个等级发布
-
-优化方案：
-
-1. 对服务进行抽象，对外提供生产和消费消息接口；
-2. 客户端不需要自己订阅队列,队列数减少一半；
-3. 服务内部对数据进行格式化流转；
-4. 服务通过回调对失败消息往高等级队列投递
+func dealMsg(dtm go_delay_queue.DelayTopicMsg) (err error) {
+	fmt.Printf("开始处理消息：%#v\n", dtm)
+	return
+}
+```
