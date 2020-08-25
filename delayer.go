@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sony/sonyflake"
+	"log"
 	"sync"
 	"time"
 )
@@ -19,8 +20,6 @@ type Delayer struct {
 	now           int64 // 当前时间戳
 	Debug         bool
 }
-
-type topicState int
 
 var (
 	DurationMin = 1 * time.Minute
@@ -96,7 +95,7 @@ func (dr *Delayer) consumeDelayMsg() {
 	for _, item := range dr.levelTopicMap {
 		if !item.NoAlive {
 			go dr.queuer.SubscribeMsg(item.TopicName, dr.dealMsg)
-			fmt.Println("开始订阅延迟Topic：", item.TopicName)
+			log.Println("开始订阅延迟Topic：", item.TopicName)
 		}
 	}
 }
@@ -105,15 +104,15 @@ func (dr *Delayer) consumeDelayMsg() {
 func (dr *Delayer) dealMsg(data []byte) (err error) {
 	var stru = &DelayTopicMsg{}
 	if dr.Debug {
-		fmt.Println("------- dealMsg -------- ")
-		fmt.Printf("获得延迟数据：%s\n", data)
+		log.Println("------- dealMsg -------- ")
+		log.Printf("获得延迟数据：%s\n", data)
 	}
 	if err := json.Unmarshal(data, stru); err == nil {
 		// 判断时间是否达到指定时间
 		if stru.ExpiredAt > dr.now {
 			var ttl = stru.ExpiredAt - dr.now
 			if dr.Debug {
-				fmt.Println(fmt.Sprintf("消息未到达指定时间，等待 %ds\n", ttl))
+				log.Printf(fmt.Sprintf("消息未到达指定时间，等待 %ds\n", ttl))
 			}
 			select {
 			case <-time.After(time.Duration(ttl) * time.Second):
@@ -127,7 +126,7 @@ func (dr *Delayer) dealMsg(data []byte) (err error) {
 		go func(delayMsg *DelayTopicMsg) {
 			err := dr.levelTopicMap[delayMsg.Level].DealFn(*delayMsg)
 			if dr.Debug {
-				fmt.Println("交付客户端处理:", err)
+				log.Println("交付客户端处理:", err)
 			}
 			if err != nil {
 				// 入下一等级消息
@@ -135,7 +134,7 @@ func (dr *Delayer) dealMsg(data []byte) (err error) {
 			}
 		}(stru)
 	} else {
-		fmt.Println(err)
+		fmt.Println("解析异常:", err)
 	}
 	return
 }
@@ -152,7 +151,7 @@ func (dr *Delayer) inQueue(isUpgrade bool, dtm *DelayTopicMsg) (err error) {
 			// 判断是否超过等级数量
 			if (dtm.Level + 1) > dr.levelMax {
 				if dr.Debug {
-					fmt.Printf("discard: %#v\n", dtm)
+					log.Printf("无更高等级topic,丢弃: %#v\n", dtm)
 				}
 				return
 			}
@@ -165,10 +164,10 @@ func (dr *Delayer) inQueue(isUpgrade bool, dtm *DelayTopicMsg) (err error) {
 	dtm.ExpiredAt = time.Now().Add(dr.levelTopicMap[dtm.Level].Ttl).Unix()
 	if msg, err := json.Marshal(dtm); err == nil {
 		if dr.Debug {
-			fmt.Println("------- inQueue -------- ")
-			fmt.Printf("in queue:%s\n", msg)
+			log.Println("------- inQueue -------- ")
+			log.Printf("in queue:%s, %s\n", dr.levelTopicMap[dtm.Level].TopicName, msg)
 		}
-		dr.queuer.PublishMsg(dr.levelTopicMap[dtm.Level].TopicName, msg)
+		err = dr.queuer.PublishMsg(dr.levelTopicMap[dtm.Level].TopicName, msg)
 	} else {
 		return err
 	}
@@ -187,8 +186,8 @@ func (dr *Delayer) AddMsg(level int, msg interface{}) (err error) {
 		RetryNums: 0,
 		DelayMsg:  msg,
 	}
-	dr.inQueue(false, dtm)
-	return nil
+	err = dr.inQueue(false, dtm)
+	return
 }
 
 func (dr *Delayer) getId() uint64 {
