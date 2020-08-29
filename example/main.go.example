@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Shopify/sarama"
-	"github.com/go-redis/redis"
-	dredis "github.com/wsqun/go-delay-driver-redis"
 	dkafka "github.com/wsqun/go-delay-driver-kafka"
+	dredis "github.com/wsqun/go-delay-driver-redis"
 	go_delay_queue "github.com/wsqun/go-delay-queue"
 	"os"
 	"os/signal"
@@ -62,7 +60,6 @@ func main()  {
 	if serve,err := go_delay_queue.NewDelay(conf, queuer);err == nil {
 		serve.Run()
 		<-time.NewTimer(10 * time.Second).C
-
 		err = serve.AddMsg(0, 1)
 		fmt.Println(err)
 	} else {
@@ -80,18 +77,11 @@ func main()  {
 
 func getQueuer(mq string, ctx context.Context, wg *sync.WaitGroup) (dr go_delay_queue.Iqueue, err error) {
 	if mq == "redis" {
-		dr,err = dredis.NewDredis(&redis.Options{
-			Addr:     "127.0.0.1:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		})
+		dr,err = dredis.NewDredis("127.0.0.1:6379","")
 		return
 	}
 	if mq == "kafka" {
-		dr,err = dkafka.NewDKafka([]string{"192.168.1.106:9092"},"demo",ctx,wg, func(cfg *sarama.Config) {
-			version, _ := sarama.ParseKafkaVersion("2.1.1")
-			cfg.Version = version
-		})
+		dr,err = dkafka.NewDKafka([]string{"192.168.1.106:9092"},"demo",ctx,wg)
 		return
 	}
 	return

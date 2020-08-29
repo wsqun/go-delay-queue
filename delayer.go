@@ -162,6 +162,11 @@ func (dr *Delayer) inQueue(isUpgrade bool, dtm *DelayTopicMsg) (err error) {
 		}
 	}
 	dtm.ExpiredAt = time.Now().Add(dr.levelTopicMap[dtm.Level].Ttl).Unix()
+	// 将[]byte转string
+	switch c := dtm.DelayMsg.(type) {
+	case []byte:
+		dtm.DelayMsg = string(c)
+	}
 	if msg, err := json.Marshal(dtm); err == nil {
 		if dr.Debug {
 			log.Println("------- inQueue -------- ")

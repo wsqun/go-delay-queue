@@ -44,8 +44,12 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.6.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/wsqun/go-delay-driver-kafka v1.0.0 h1:41PuFZLkM4nBkfY3/rlZf2mlQnCz6ARukjyEkQdh5NQ=
 github.com/wsqun/go-delay-driver-kafka v1.0.0/go.mod h1:9UqmE1XztXO8bwig1kH31YKMyPfM5IgDbdpILyF4kRY=
+github.com/wsqun/go-delay-driver-kafka v1.0.1 h1:XtuXrT4rpsVeBBZUMSsX9+60qe3akNYqtLLGHIIB/vc=
+github.com/wsqun/go-delay-driver-kafka v1.0.1/go.mod h1:9UqmE1XztXO8bwig1kH31YKMyPfM5IgDbdpILyF4kRY=
 github.com/wsqun/go-delay-driver-redis v1.0.0 h1:4YYNkpXJfpuYaTtTkV6uVInvTiqg/4IifQhto7Ma+Gc=
 github.com/wsqun/go-delay-driver-redis v1.0.0/go.mod h1:wmTd2wXlABTUM0UZq5e8RH0byNynl88D9draCMeSRRg=
+github.com/wsqun/go-delay-driver-redis v1.0.1 h1:cvR3FJy1FA6sXmNmpiJ7GwtDPtGG+yEwn+/sxhRjAes=
+github.com/wsqun/go-delay-driver-redis v1.0.1/go.mod h1:wmTd2wXlABTUM0UZq5e8RH0byNynl88D9draCMeSRRg=
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.0/go.mod h1:Jhud4/sHMO4oL310DaZAKk9ZaJ08SJfe+sJh0HrGL1Y=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
