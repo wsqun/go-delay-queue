@@ -101,6 +101,7 @@ func getQueuer(mq string, ctx context.Context, wg *sync.WaitGroup) (dr go_delay_
 		dr,err = dkafka.NewDKafka([]string{"192.168.1.106:9092"},"demo",ctx,wg)
 		return
 	}
+	panic("no exist")
 	return
 }
 
