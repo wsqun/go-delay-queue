@@ -28,7 +28,7 @@ func main()  {
 		TopicName: "low",
 		Level:     0,
 		RetryNums: 1,
-		Ttl:       5 * time.Second,
+		Ttl:       20 * time.Second,
 		DealFn: dealMsg,
 	}
 	medium := &go_delay_queue.DelayLevel{
@@ -38,30 +38,32 @@ func main()  {
 		Ttl:       20 * time.Second,
 		DealFn: dealMsg,
 	}
-	high := &go_delay_queue.DelayLevel{
-		TopicName: "high",
-		Level:     2,
-		RetryNums: 1,
-		Ttl:       40 * time.Second,
-		DealFn: dealMsg,
-	}
+	//high := &go_delay_queue.DelayLevel{
+	//	TopicName: "high",
+	//	Level:     2,
+	//	RetryNums: 1,
+	//	Ttl:       40 * time.Second,
+	//	DealFn: dealMsg,
+	//}
 	delaySli := []*go_delay_queue.DelayLevel{
-		low,medium,high,
+		low,
+		medium,
+		//high,
 	}
-	// 调整最小延迟时间
-	go_delay_queue.DurationMin = 1 * time.Second
 	// 初始化配置
 	conf := &go_delay_queue.DelayServeConf{
-		ClientCtx:      context.Background(),
+		ClientCtx:      ctx,
 		ClientWg:       wg,
 		DelayLevels: delaySli,
 		Debug: true,
 	}
-	if serve,err := go_delay_queue.NewDelay(conf, queuer);err == nil {
+	if serve,err := go_delay_queue.NewDelay(conf, queuer, func(dr *go_delay_queue.Delayer){
+		dr.SetDurationMin(1 * time.Second)
+	});err == nil {
+		serve.SetDurationMin(1 * time.Second)
 		serve.Run()
 		<-time.NewTimer(10 * time.Second).C
-		err = serve.AddMsg(0, 1)
-		fmt.Println(err)
+		err = serve.AddMsg(0, "test ")
 	} else {
 		panic(err)
 	}
@@ -81,7 +83,7 @@ func getQueuer(mq string, ctx context.Context, wg *sync.WaitGroup) (dr go_delay_
 		return
 	}
 	if mq == "kafka" {
-		dr,err = dkafka.NewDKafka([]string{"192.168.1.106:9092"},"demo",ctx,wg)
+		dr,err = dkafka.NewDKafka([]string{"192.168.1.104:9092"},"demo",ctx,wg)
 		return
 	}
 	panic("no exist")

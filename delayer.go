@@ -18,11 +18,11 @@ type Delayer struct {
 	clientWg      *sync.WaitGroup
 	queuer        Iqueue
 	now           int64 // 当前时间戳
+	durationMin   time.Duration
 	Debug         bool
 }
 
 var (
-	DurationMin = 1 * time.Minute
 	snow        *sonyflake.Sonyflake
 )
 
@@ -33,13 +33,19 @@ func init() {
 	})
 }
 
-func NewDelay(conf *DelayServeConf, queuer Iqueue) (dr *Delayer, err error) {
+func NewDelay(conf *DelayServeConf, queuer Iqueue, opt ...OptFn) (dr *Delayer, err error) {
 	dr = &Delayer{
 		clientCtx: conf.ClientCtx,
 		clientWg:  conf.ClientWg,
 		queuer:    queuer,
 		levelMax:  0,
 		Debug:     conf.Debug,
+		durationMin: 1 * time.Minute,
+	}
+	if len(opt) > 0 {
+		for _,fn := range opt {
+			fn(dr)
+		}
 	}
 	if err = dr.validateLevel(conf.DelayLevels); err != nil {
 		return nil, err
@@ -47,6 +53,8 @@ func NewDelay(conf *DelayServeConf, queuer Iqueue) (dr *Delayer, err error) {
 	go dr.realtime()
 	return
 }
+
+type OptFn func(dr *Delayer)
 
 // 校验等级
 func (dr *Delayer) validateLevel(dl []*DelayLevel) (err error) {
@@ -58,8 +66,8 @@ func (dr *Delayer) validateLevel(dl []*DelayLevel) (err error) {
 		return err
 	}
 	for _, item := range dl {
-		if item.Ttl < DurationMin {
-			err = errors.New(fmt.Sprintf("延迟消息时长小于：%d", DurationMin))
+		if item.Ttl < dr.durationMin {
+			err = errors.New(fmt.Sprintf("延迟消息时长小于：%d", dr.durationMin))
 			return err
 		}
 
@@ -107,7 +115,7 @@ func (dr *Delayer) dealMsg(data []byte) (err error) {
 		log.Println("------- dealMsg -------- ")
 		log.Printf("获得延迟数据：%s\n", data)
 	}
-	if err := json.Unmarshal(data, stru); err == nil {
+	if err = json.Unmarshal(data, stru); err == nil {
 		// 判断时间是否达到指定时间
 		if stru.ExpiredAt > dr.now {
 			var ttl = stru.ExpiredAt - dr.now
@@ -116,9 +124,15 @@ func (dr *Delayer) dealMsg(data []byte) (err error) {
 			}
 			select {
 			case <-time.After(time.Duration(ttl) * time.Second):
+				if dr.Debug {
+					log.Printf("倒计时结束...")
+				}
 			case <-dr.clientCtx.Done():
 				// 消息重回
 				err = errors.New("reload")
+				if dr.Debug {
+					log.Printf("中断退出，将消息撤销读取：%s\n", data)
+				}
 				return err
 			}
 		}
@@ -200,4 +214,9 @@ func (dr *Delayer) getId() uint64 {
 		return id
 	}
 	return uint64(time.Now().UnixNano())
+}
+
+// 调整最小延迟时间
+func (dr *Delayer) SetDurationMin(ttl time.Duration) {
+	dr.durationMin = ttl
 }
