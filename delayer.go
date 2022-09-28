@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sony/sonyflake"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/sony/sonyflake"
 )
 
 type Delayer struct {
@@ -23,7 +24,7 @@ type Delayer struct {
 }
 
 var (
-	snow        *sonyflake.Sonyflake
+	snow *sonyflake.Sonyflake
 )
 
 func init() {
@@ -35,15 +36,15 @@ func init() {
 
 func NewDelay(conf *DelayServeConf, queuer Iqueue, opt ...OptFn) (dr *Delayer, err error) {
 	dr = &Delayer{
-		clientCtx: conf.ClientCtx,
-		clientWg:  conf.ClientWg,
-		queuer:    queuer,
-		levelMax:  0,
-		Debug:     conf.Debug,
+		clientCtx:   conf.ClientCtx,
+		clientWg:    conf.ClientWg,
+		queuer:      queuer,
+		levelMax:    0,
+		Debug:       conf.Debug,
 		durationMin: 1 * time.Minute,
 	}
 	if len(opt) > 0 {
-		for _,fn := range opt {
+		for _, fn := range opt {
 			fn(dr)
 		}
 	}
@@ -102,8 +103,15 @@ func (dr *Delayer) consumeDelayMsg() {
 	// 创建消费chan
 	for _, item := range dr.levelTopicMap {
 		if !item.NoAlive {
-			go dr.queuer.SubscribeMsg(item.TopicName, dr.dealMsg)
-			log.Println("开始订阅延迟Topic：", item.TopicName)
+			go func(topic string) {
+				err := dr.queuer.SubscribeMsg(topic, dr.dealMsg)
+				if err != nil {
+					log.Println("订阅Topic失败：", topic, err.Error())
+				} else {
+					log.Println("开始订阅延迟Topic：", topic)
+				}
+
+			}(item.TopicName)
 		}
 	}
 }
