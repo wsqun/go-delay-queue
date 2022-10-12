@@ -51,7 +51,7 @@ func NewDelay(conf *DelayServeConf, queuer Iqueue, opt ...OptFn) (dr *Delayer, e
 	if err = dr.validateLevel(conf.DelayLevels); err != nil {
 		return nil, err
 	}
-	go dr.realtime()
+	//go dr.realtime()
 	return
 }
 
@@ -124,9 +124,10 @@ func (dr *Delayer) dealMsg(data []byte) (err error) {
 		log.Printf("获得延迟数据：%s\n", data)
 	}
 	if err = json.Unmarshal(data, stru); err == nil {
+		now := time.Now().Unix()
 		// 判断时间是否达到指定时间
-		if stru.ExpiredAt > dr.now {
-			var ttl = stru.ExpiredAt - dr.now
+		if stru.ExpiredAt > now {
+			var ttl = stru.ExpiredAt - now
 			if dr.Debug {
 				log.Printf(fmt.Sprintf("消息未到达指定时间，等待 %ds\n", ttl))
 			}
@@ -144,19 +145,18 @@ func (dr *Delayer) dealMsg(data []byte) (err error) {
 				return err
 			}
 		}
-		// 可以开始消费
-		go func(delayMsg *DelayTopicMsg) {
-			err := dr.levelTopicMap[delayMsg.Level].DealFn(*delayMsg)
-			if dr.Debug {
-				log.Println("交付客户端处理:", err)
-			}
-			if err != nil {
-				// 入下一等级消息
-				dr.inQueue(true, delayMsg)
-			}
-		}(stru)
+
+		errConsume := dr.levelTopicMap[stru.Level].DealFn(*stru)
+		if dr.Debug {
+			log.Println("交付客户端处理:", errConsume)
+		}
+		if errConsume != nil {
+			// 入下一等级消息
+			err = dr.inQueue(true, stru)
+		}
+
 	} else {
-		fmt.Println("解析异常:", err)
+		log.Println("解析异常:", err)
 	}
 	return
 }
