@@ -191,10 +191,14 @@ func (dr *Delayer) inQueue(isUpgrade bool, dtm *DelayTopicMsg) (err error) {
 	}
 	if msg, err := json.Marshal(dtm); err == nil {
 		if dr.Debug {
-			log.Println("------- inQueue -------- ")
+			log.Println("------- inQueue start -------- ")
 			log.Printf("in queue:%s, %s\n", dr.levelTopicMap[dtm.Level].TopicName, msg)
 		}
 		err = dr.queuer.PublishMsg(dr.levelTopicMap[dtm.Level].TopicName, msg)
+		if dr.Debug {
+			log.Println("in queue res: ", err)
+			log.Println("------- inQueue end -------- ")
+		}
 	} else {
 		return err
 	}
