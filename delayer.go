@@ -184,11 +184,7 @@ func (dr *Delayer) inQueue(isUpgrade bool, dtm *DelayTopicMsg) (err error) {
 		}
 	}
 	dtm.ExpiredAt = time.Now().Add(dr.levelTopicMap[dtm.Level].Ttl).Unix()
-	// 将[]byte转string
-	switch c := dtm.DelayMsg.(type) {
-	case []byte:
-		dtm.DelayMsg = string(c)
-	}
+
 	if msg, err := json.Marshal(dtm); err == nil {
 		if dr.Debug {
 			log.Println("------- inQueue start -------- ")
@@ -206,7 +202,7 @@ func (dr *Delayer) inQueue(isUpgrade bool, dtm *DelayTopicMsg) (err error) {
 }
 
 // 添加延迟消息
-func (dr *Delayer) AddMsg(level int, msg interface{}) (err error) {
+func (dr *Delayer) AddMsg(level int, msg string) (err error) {
 	if level > dr.levelMax {
 		err = errors.New(fmt.Sprintf("消息等级不能大于：%d", dr.levelMax))
 		return
